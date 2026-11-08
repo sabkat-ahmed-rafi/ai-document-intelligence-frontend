@@ -1,7 +1,10 @@
-export default function Home() {
+import { Suspense } from "react";
+import { HomeView } from "@/features/home";
+
+export default function HomePage() {
   return (
-    <div>
-      ai document intelligent
-    </div>
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 dark:bg-slate-950" />}>
+      <HomeView />
+    </Suspense>
   );
 }

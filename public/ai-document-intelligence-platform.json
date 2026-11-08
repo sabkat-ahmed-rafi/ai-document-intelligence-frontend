@@ -1,0 +1,1402 @@
+{
+  "info": {
+    "name": "AI Document Intelligence Platform API",
+    "description": "Complete Postman collection for the AI Document Intelligence Platform backend, including Authentication, User Management, and System Health.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "antigravity"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "reset_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "collection_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "document_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "thread_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "System & Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Verifies that the API server is online and successfully connected to the Supabase PostgreSQL database."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "1. Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"SecurePassword123!\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Creates a new user account. Validates email uniqueness and hashes password with bcrypt."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "if (res.data && res.data.token) {",
+                  "    pm.collectionVariables.set('access_token', res.data.token.access_token);",
+                  "    pm.collectionVariables.set('refresh_token', res.data.token.refresh_token);",
+                  "    console.log('Saved access_token and refresh_token to collection variables');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"SecurePassword123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Logs in the user. Sets HTTP-only cookies in browsers AND returns access/refresh tokens in the JSON response body for mobile apps."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Get Profile (/me)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Retrieves the currently authenticated user's profile info to maintain UI state across page refreshes."
+          },
+          "response": []
+        },
+        {
+          "name": "4. Refresh Access Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "if (res.data && res.data.access_token) {",
+                  "    pm.collectionVariables.set('access_token', res.data.access_token);",
+                  "    console.log('Updated access_token in collection variables');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/refresh-token",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "refresh-token"
+              ]
+            },
+            "description": "Generates a new access token using a valid refresh token (via cookie, Bearer header, or body payload)."
+          },
+          "response": []
+        },
+        {
+          "name": "5. Change Password",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_password\": \"SecurePassword123!\",\n  \"new_password\": \"NewSecurePassword456!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/change-password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "change-password"
+              ]
+            },
+            "description": "Allows an authenticated user to change their password. Keeps the current device session active while invalidating all other devices' refresh tokens."
+          },
+          "response": []
+        },
+        {
+          "name": "6. Forgot Password (Request Code)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/forgot-password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "forgot-password"
+              ]
+            },
+            "description": "Requests a 6-digit password reset code. The code is logged to console/log output and stored hashed in DB."
+          },
+          "response": []
+        },
+        {
+          "name": "7. Verify Password Reset Code",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "if (res.data && res.data.reset_token) {",
+                  "    pm.collectionVariables.set('reset_token', res.data.reset_token);",
+                  "    console.log('Saved reset_token to collection variables');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"code\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/verify-password-reset-code",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "verify-password-reset-code"
+              ]
+            },
+            "description": "Verifies the 6-digit code sent to the user and exchanges it for a secure, time-limited reset_token."
+          },
+          "response": []
+        },
+        {
+          "name": "8. Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reset_token\": \"{{reset_token}}\",\n  \"new_password\": \"BrandNewPassword789!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/reset-password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "reset-password"
+              ]
+            },
+            "description": "Sets the new password using the reset_token and deletes ALL refresh tokens in the database, logging out all lost or active devices."
+          },
+          "response": []
+        },
+        {
+          "name": "9. Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('access_token', '');",
+                  "pm.collectionVariables.set('refresh_token', '');",
+                  "console.log('Cleared tokens from collection variables');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Clears browser cookies and deletes ONLY the current device's refresh token from the database, leaving other devices logged in."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Collections",
+      "item": [
+        {
+          "name": "1. Create Collection",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "if (res.data && res.data.id) {",
+                  "    pm.collectionVariables.set('collection_id', res.data.id);",
+                  "    console.log('Saved collection_id:', res.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Financial Reports 2026\",\n  \"description\": \"Quarterly earnings, audit files, and tax disclosures\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/collections",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "collections"
+              ]
+            },
+            "description": "Creates a new collection (smart folder / knowledge base) to organize documents."
+          },
+          "response": []
+        },
+        {
+          "name": "2. List Collections",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/collections?limit=50&offset=0",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "collections"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Lists all collections owned by the user, including document counts."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Get Collection Details",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/collections/{{collection_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "collections",
+                "{{collection_id}}"
+              ]
+            },
+            "description": "Retrieves metadata and document count for a specific collection."
+          },
+          "response": []
+        },
+        {
+          "name": "4. Update Collection",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Financial Reports 2026 (Updated)\",\n  \"description\": \"Updated description for quarterly reports\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/collections/{{collection_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "collections",
+                "{{collection_id}}"
+              ]
+            },
+            "description": "Updates the name or description of a collection."
+          },
+          "response": []
+        },
+        {
+          "name": "5. Delete Collection (Cascade)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/collections/{{collection_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "collections",
+                "{{collection_id}}"
+              ]
+            },
+            "description": "Deletes a collection and CASCADE deletes all documents associated with it."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Documents",
+      "item": [
+        {
+          "name": "1. Upload Document(s) (HTTP 202)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "if (res.data) {",
+                  "    if (res.data.collection_id) {",
+                  "        pm.collectionVariables.set('collection_id', res.data.collection_id);",
+                  "        console.log('Saved collection_id:', res.data.collection_id);",
+                  "    }",
+                  "    if (res.data.document_id) {",
+                  "        pm.collectionVariables.set('document_id', res.data.document_id);",
+                  "        console.log('Saved document_id:', res.data.document_id);",
+                  "    } else if (res.data.uploaded && res.data.uploaded.length > 0) {",
+                  "        pm.collectionVariables.set('document_id', res.data.uploaded[0].document_id);",
+                  "        console.log('Saved document_id from batch:', res.data.uploaded[0].document_id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "files",
+                  "type": "file",
+                  "src": "",
+                  "description": "Select one or multiple files at once (PDF, DOCX, TXT, PNG, JPG, etc., up to 50MB each)"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "",
+                  "description": "Single file upload fallback"
+                },
+                {
+                  "key": "collection_id",
+                  "value": "{{collection_id}}",
+                  "type": "text",
+                  "description": "Optional UUID of an existing collection to group these documents into"
+                },
+                {
+                  "key": "collection_name",
+                  "value": "Financial Reports 2026",
+                  "type": "text",
+                  "description": "Optional collection name (will auto-create collection if collection_id is not provided)"
+                },
+                {
+                  "key": "title",
+                  "value": "Quarterly Financials Report",
+                  "type": "text",
+                  "description": "Optional custom title (applied when uploading single document)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/documents/upload",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "documents",
+                "upload"
+              ]
+            },
+            "description": "Uploads one or multiple documents/images (PDF, DOCX, TXT, MD, PNG, JPG, WEBP, TIFF, BMP, up to 50MB each) into Supabase Storage under a collection. Returns HTTP 202 Accepted."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Get Document Details & Status",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/documents/{{document_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "documents",
+                "{{document_id}}"
+              ]
+            },
+            "description": "Retrieves document processing status, metadata, collection_id, and presigned/signed download URL from Supabase Storage."
+          },
+          "response": []
+        },
+        {
+          "name": "3. List User Documents",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/documents?collection_id={{collection_id}}&limit=50&offset=0",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "documents"
+              ],
+              "query": [
+                {
+                  "key": "collection_id",
+                  "value": "{{collection_id}}",
+                  "description": "Optional filter by collection UUID"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Lists all active documents uploaded by the authenticated user, optionally filtered by collection UUID."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "AI Processing & Vector Search",
+      "item": [
+        {
+          "name": "1. Trigger / Re-process Document",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/documents/{{document_id}}/process?run_in_background=true",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "documents",
+                "{{document_id}}",
+                "process"
+              ],
+              "query": [
+                {
+                  "key": "run_in_background",
+                  "value": "true",
+                  "description": "Run asynchronously in background (true) or wait for completion (false)"
+                }
+              ]
+            },
+            "description": "Triggers or re-triggers end-to-end AI document processing: Docling layout-aware parsing, table extraction, hybrid chunking, FastEmbed vector embedding, and Supabase pgvector indexing. Returns HTTP 202 Accepted."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Get Document Chunks",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/documents/{{document_id}}/chunks?limit=100&offset=0",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "documents",
+                "{{document_id}}",
+                "chunks"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "100"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Retrieves all parsed text chunks, token statistics, and layout metadata indexed in Supabase pgvector for a specific document."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Hybrid Search (Vector + BM25 RRF)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"How much revenue did North America generate in Q4?\",\n  \"mode\": \"hybrid\",\n  \"collection_id\": \"{{collection_id}}\",\n  \"limit\": 5,\n  \"similarity_threshold\": 0.0\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/documents/search",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "documents",
+                "search"
+              ]
+            },
+            "description": "Performs state-of-the-art Hybrid Search blending pgvector cosine similarity and PostgreSQL BM25 full-text search using Reciprocal Rank Fusion (RRF)."
+          },
+          "response": []
+        },
+        {
+          "name": "4. Full-Text Keyword Search (BM25)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"INV-2026-99 \\\"Clause 4.2\\\"\",\n  \"mode\": \"keyword\",\n  \"limit\": 5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/documents/search",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "documents",
+                "search"
+              ]
+            },
+            "description": "Performs exact keyword matching using PostgreSQL full-text search (websearch_to_tsquery and ts_rank_cd). Ideal for error codes, invoice IDs, and specific legal terminology."
+          },
+          "response": []
+        },
+        {
+          "name": "5. Get Document Summary & Entities",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/documents/{{document_id}}/summary",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "documents",
+                "{{document_id}}",
+                "summary"
+              ]
+            },
+            "description": "Retrieves the pre-generated executive summary and extracted structured entity catalog (parties, key dates, financial values, document classification, and topics) from the document's metadata."
+          },
+          "response": []
+        },
+        {
+          "name": "6. Generate Document Summary (On-Demand)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/documents/{{document_id}}/summarize",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "documents",
+                "{{document_id}}",
+                "summarize"
+              ]
+            },
+            "description": "Triggers on-demand executive summarization and entity extraction across all parsed chunks of this document, saving the results to document metadata."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "RAG & Document Chat",
+      "item": [
+        {
+          "name": "1. Ask Documents Question (Batch)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"What was the total revenue and what drove the growth?\",\n  \"collection_id\": \"{{collection_id}}\",\n  \"top_k\": 5,\n  \"similarity_threshold\": 0.5,\n  \"stream\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/documents/chat",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "documents",
+                "chat"
+              ]
+            },
+            "description": "Submits a natural language question across all documents or filtered by collection. Returns an instant grounded answer with inline [Source N] tags and structured citations (page numbers, similarity, snippets)."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Ask Documents Question (SSE Streaming)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"What was the total revenue and what drove the growth?\",\n  \"collection_id\": \"{{collection_id}}\",\n  \"top_k\": 5,\n  \"similarity_threshold\": 0.5,\n  \"stream\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/documents/chat",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "documents",
+                "chat"
+              ]
+            },
+            "description": "Streams real-time answer tokens via Server-Sent Events (SSE). Emits metadata event first with citations, followed by word-by-word token events, and finishes with done event with latency metrics."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Single Document Chat (Scoped)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"What are the key terms and termination clauses in this agreement?\",\n  \"top_k\": 5,\n  \"similarity_threshold\": 0.5,\n  \"stream\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/documents/{{document_id}}/chat",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "documents",
+                "{{document_id}}",
+                "chat"
+              ]
+            },
+            "description": "Submits a question scoped strictly to a single document. Ensures that vector retrieval and grounding never search outside this document's parsed chunks."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Chat Threads & Conversational Memory",
+      "item": [
+        {
+          "name": "1. Create Chat Thread",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.data && jsonData.data.id) {",
+                  "        pm.collectionVariables.set(\"thread_id\", jsonData.data.id);",
+                  "        console.log(\"Saved thread_id: \" + jsonData.data.id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Q3 Financial Performance Analysis\",\n  \"collection_id\": \"{{collection_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/threads",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "threads"
+              ]
+            },
+            "description": "Creates a persistent conversational chat thread, optionally scoped to a collection or single document."
+          },
+          "response": []
+        },
+        {
+          "name": "2. List Chat Threads",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/threads?limit=20&offset=0",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "threads"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Retrieves all conversation threads for the authenticated user, ordered by last activity with message counts."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Get Thread Detail & History",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/threads/{{thread_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "threads",
+                "{{thread_id}}"
+              ]
+            },
+            "description": "Retrieves the full thread metadata and chronological message history."
+          },
+          "response": []
+        },
+        {
+          "name": "4. Conversational Chat in Thread (Batch)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"What were the primary drivers behind that revenue growth?\",\n  \"search_mode\": \"hybrid\",\n  \"top_k\": 5,\n  \"similarity_threshold\": 0.0,\n  \"stream\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/threads/{{thread_id}}/chat",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "threads",
+                "{{thread_id}}",
+                "chat"
+              ]
+            },
+            "description": "Submits a conversational follow-up question. The system contextualizes the query using chat history, performs hybrid search, grounds the answer, and persists both user & assistant messages."
+          },
+          "response": []
+        },
+        {
+          "name": "5. Conversational Chat in Thread (SSE Stream)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Can you summarize the second point in two bullet points?\",\n  \"search_mode\": \"hybrid\",\n  \"top_k\": 5,\n  \"similarity_threshold\": 0.0,\n  \"stream\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/threads/{{thread_id}}/chat",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "threads",
+                "{{thread_id}}",
+                "chat"
+              ]
+            },
+            "description": "Streams real-time tokens over Server-Sent Events (SSE). Emits metadata event first, followed by word-by-word token events and a done event."
+          },
+          "response": []
+        },
+        {
+          "name": "6. Rename Chat Thread",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Renamed: Q3 Revenue & Strategic Drivers\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/threads/{{thread_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "threads",
+                "{{thread_id}}"
+              ]
+            },
+            "description": "Updates the title of a conversation thread."
+          },
+          "response": []
+        },
+        {
+          "name": "7. List Thread Messages (Paginated)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/threads/{{thread_id}}/messages?limit=50&offset=0",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "threads",
+                "{{thread_id}}",
+                "messages"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Fetches paginated chronological messages for a conversation thread."
+          },
+          "response": []
+        },
+        {
+          "name": "8. Delete Chat Thread",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/threads/{{thread_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "threads",
+                "{{thread_id}}"
+              ]
+            },
+            "description": "Soft-deletes a conversation thread and archives its history."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
