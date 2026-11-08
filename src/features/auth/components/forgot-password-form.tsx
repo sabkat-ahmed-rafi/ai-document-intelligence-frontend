@@ -35,13 +35,19 @@ type Step = "EMAIL" | "VERIFY_CODE" | "NEW_PASSWORD" | "SUCCESS";
 
 export function ForgotPasswordForm() {
   const router = useRouter();
-  const { forgotPassword, verifyResetCode, resetPassword } = useAuth();
+  const { forgotPassword, verifyResetCode, resetPassword, isAuthenticated, isLoading } = useAuth();
 
   const [step, setStep] = useState<Step>("EMAIL");
   const [email, setEmail] = useState("");
   const [resetToken, setResetToken] = useState("");
   const [serverError, setServerError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  React.useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [isAuthenticated, isLoading, router]);
 
   // Forms for each step
   const emailForm = useForm<ForgotPasswordFormValues>({

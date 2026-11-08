@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
@@ -15,14 +15,28 @@ import { AuthErrorBanner } from "./auth-error-banner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-export function LoginForm() {
+interface LoginFormProps {
+  redirectTo?: string;
+}
+
+export function LoginForm({ redirectTo }: LoginFormProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") || "/dashboard";
 
   const { login, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+
+  const getTargetUrl = useCallback(() => {
+    if (redirectTo) return redirectTo;
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectParam = searchParams.get("redirect");
+      if (redirectParam && redirectParam.startsWith("/")) {
+        return redirectParam;
+      }
+    }
+    return "/dashboard";
+  }, [redirectTo]);
 
   const {
     register,
@@ -40,9 +54,9 @@ export function LoginForm() {
   // Redirect if already authenticated
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated) {
-      router.replace(redirectTo);
+      router.replace(getTargetUrl());
     }
-  }, [isAuthenticated, isAuthLoading, router, redirectTo]);
+  }, [isAuthenticated, isAuthLoading, router, getTargetUrl]);
 
   const onSubmit = async (values: LoginFormValues) => {
     setServerError(null);
@@ -52,7 +66,7 @@ export function LoginForm() {
         password: values.password,
       });
       toast.success("Welcome back!");
-      router.push(redirectTo);
+      router.push(getTargetUrl());
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to sign in. Please check your credentials.";
       setServerError(msg);

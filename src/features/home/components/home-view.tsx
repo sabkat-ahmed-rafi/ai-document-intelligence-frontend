@@ -1,8 +1,5 @@
-"use client";
-
-import { useEffect } from "react";
+import React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   FileText,
   Sparkles,
@@ -11,19 +8,9 @@ import {
   Bot,
   Lock,
 } from "lucide-react";
-import { useAuth } from "@/features/auth/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 
 export function HomeView() {
-  const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
-
-  useEffect(() => {
-    if (!isLoading && isAuthenticated) {
-      router.replace("/dashboard");
-    }
-  }, [isLoading, isAuthenticated, router]);
-
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col">
       {/* Navbar */}
@@ -57,8 +44,8 @@ export function HomeView() {
       <main className="flex-1 flex flex-col justify-center items-center px-4 py-16 sm:py-24 relative overflow-hidden">
         {/* Background ambient lighting */}
         <div className="pointer-events-none absolute inset-0 -z-10 flex items-center justify-center">
-          <div className="h-144 w-xl rounded-full bg-linear-to-tr from-indigo-500/15 via-purple-500/10 to-transparent blur-3xl" />
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-size-[32px_32px]" />
+          <div className="h-[36rem] w-[36rem] rounded-full bg-gradient-to-tr from-indigo-500/15 via-purple-500/10 to-transparent blur-3xl" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:32px_32px]" />
         </div>
 
         <div className="max-w-3xl text-center space-y-6">
@@ -67,7 +54,7 @@ export function HomeView() {
           </div>
 
           <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.1]">
-            Transform documents into <span className="text-transparent bg-clip-text bg-linear-to-r from-indigo-600 via-indigo-500 to-purple-600">instant knowledge</span>
+            Transform documents into <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600">instant knowledge</span>
           </h1>
 
           <p className="text-base sm:text-lg text-slate-600 dark:text-slate-400 max-w-xl mx-auto leading-relaxed">

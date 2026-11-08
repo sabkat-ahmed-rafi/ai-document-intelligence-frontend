@@ -1,12 +1,11 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   useLoginMutation,
   useRegisterMutation,
   useLogoutUserMutation,
-  useGetProfileQuery,
+  useLazyGetProfileQuery,
   useForgotPasswordMutation,
   useVerifyResetCodeMutation,
   useResetPasswordMutation,
@@ -18,27 +17,9 @@ import { getErrorMessage } from "@/lib/error-utils";
 
 export function useAuth() {
   const dispatch = useAppDispatch();
-  const { user, isInitialized } = useAppSelector((state) => state.auth);
+  const { user, isAuthenticated, isInitialized } = useAppSelector((state) => state.auth);
 
-  const isClient = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false
-  );
-
-  // Automatically validates cookie session with backend on client load (skipped during SSR prerender)
-  const {
-    data: profileData,
-    isLoading: isProfileLoading,
-    refetch: refetchProfile,
-  } = useGetProfileQuery(undefined, {
-    skip: !isClient,
-  });
-
-  const currentUser = user || profileData?.data || null;
-  const isAuthenticated = Boolean(currentUser);
-  const isLoading = !isClient || (!isInitialized && isProfileLoading);
-
+  const [triggerGetProfile] = useLazyGetProfileQuery();
   const [loginMutation, { isLoading: isLoginLoading }] = useLoginMutation();
   const [registerMutation, { isLoading: isRegisterLoading }] = useRegisterMutation();
   const [logoutMutation, { isLoading: isLogoutLoading }] = useLogoutUserMutation();
@@ -126,9 +107,9 @@ export function useAuth() {
   };
 
   return {
-    user: currentUser,
+    user,
     isAuthenticated,
-    isLoading,
+    isLoading: !isInitialized,
     isLoginLoading,
     isRegisterLoading,
     isLogoutLoading,
@@ -139,6 +120,6 @@ export function useAuth() {
     verifyResetCode,
     resetPassword,
     changePassword,
-    refreshUser: refetchProfile,
+    refreshUser: triggerGetProfile,
   };
 }
