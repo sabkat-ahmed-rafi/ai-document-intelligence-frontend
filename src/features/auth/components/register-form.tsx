@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 
 export function RegisterForm() {
   const router = useRouter();
-  const { register: registerUser, login, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { register: registerUser, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -53,18 +53,8 @@ export function RegisterForm() {
         password: values.password,
       });
 
-      toast.success("Account created successfully!");
-
-      // Automatically sign in the user
-      try {
-        await login({
-          email: values.email,
-          password: values.password,
-        });
-        router.push("/dashboard");
-      } catch {
-        router.push("/login?registered=true");
-      }
+      toast.success("Account created successfully! Please sign in with your credentials.");
+      router.push("/login");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to create account. Please try again.";
       setServerError(msg);
