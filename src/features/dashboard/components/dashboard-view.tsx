@@ -1,34 +1,115 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   FileText,
-  LogOut,
   User as UserIcon,
   KeyRound,
   FolderOpen,
-  Upload,
+  FolderPlus,
   MessageSquare,
   ShieldCheck,
+  UploadCloud,
+  Menu,
+  Sparkles,
+  ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { ChangePasswordForm } from "@/features/auth/components/change-password-form";
+import {
+  CollectionsList,
+  CreateCollectionModal,
+  useListCollectionsQuery,
+  Collection,
+} from "@/features/collections";
+import {
+  DocumentList,
+  DocumentUploadModal,
+  useListDocumentsQuery,
+} from "@/features/documents";
+import {
+  ChatSidebar,
+  ChatView,
+  useListThreadsQuery,
+} from "@/features/chat";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/theme-toggle";
 
 export function DashboardView() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading, logout } = useAuth();
+
+  // Navigation State
+  const [currentView, setCurrentView] = useState<"chat" | "library">("chat");
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [activeThreadId, setActiveThreadId] = useState<string | undefined>(undefined);
+  const [activeCollectionId, setActiveCollectionId] = useState<string | undefined>(undefined);
+
+  // Modals & Profile
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+
+  // Queries
+  const { data: collectionsData } = useListCollectionsQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+  const { data: documentsData } = useListDocumentsQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+  const { data: threadsData } = useListThreadsQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+
+  const collections = useMemo(
+    () => collectionsData?.data?.collections ?? [],
+    [collectionsData?.data?.collections]
+  );
+  const collectionsCount = collectionsData?.data?.total ?? collections.length;
+  const totalDocuments =
+    documentsData?.data?.total ?? documentsData?.data?.documents?.length ?? 0;
+  const totalThreads = threadsData?.data?.total ?? threadsData?.data?.items?.length ?? 0;
+
+  // Active collection name
+  const activeCollectionName = useMemo(() => {
+    if (!activeCollectionId) return "All Documents";
+    const found = collections.find((c) => c.id === activeCollectionId);
+    return found ? found.name : "All Documents";
+  }, [activeCollectionId, collections]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.replace("/login");
     }
   }, [isLoading, isAuthenticated, router]);
+
+  const handleNewChat = () => {
+    setActiveThreadId(undefined);
+    setCurrentView("chat");
+  };
+
+  const handleSelectThread = (threadId: string) => {
+    setActiveThreadId(threadId);
+    setCurrentView("chat");
+  };
+
+  const handleSelectCollection = (colId?: string) => {
+    setActiveCollectionId(colId);
+  };
+
+  // Global Keyboard Shortcut: Cmd/Ctrl + K starts new chat
+  useEffect(() => {
+    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        handleNewChat();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -54,225 +135,326 @@ export function DashboardView() {
   }
 
   const displayName = user.first_name || user.email.split("@")[0] || "User";
-  const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.email;
+  const userInitial = displayName.charAt(0).toUpperCase();
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#0C0A09] text-stone-900 dark:text-stone-100 flex flex-col transition-colors duration-200">
-      {/* Top Navigation */}
-      <header className="sticky top-0 z-40 border-b border-stone-200/80 dark:border-stone-800/80 bg-[#FAF8F5]/85 dark:bg-[#0C0A09]/85 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-xl bg-stone-900 dark:bg-stone-100 text-stone-100 dark:text-stone-900 flex items-center justify-center font-bold shadow-xs">
-              <FileText className="h-4 w-4" />
-            </div>
-            <div>
-              <span className="font-semibold text-sm tracking-tight text-stone-900 dark:text-stone-100 flex items-center gap-1.5">
-                DocIntel <span className="text-amber-600 dark:text-amber-500 font-normal">AI</span>
-              </span>
-              <span className="text-[10px] font-mono text-stone-500 dark:text-stone-400 block leading-none">
-                Workspace · Production Node
-              </span>
+    <div className="flex h-screen w-screen overflow-hidden bg-[#FAF8F5] dark:bg-[#0C0A09] text-stone-900 dark:text-stone-100 transition-colors duration-200">
+      {/* 1. Left Collapsible AI Sidebar (ChatGPT style) */}
+      <ChatSidebar
+        activeThreadId={activeThreadId}
+        onSelectThread={handleSelectThread}
+        onNewChat={handleNewChat}
+        activeCollectionId={activeCollectionId}
+        onSelectCollection={handleSelectCollection}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        onSwitchToLibrary={() => setCurrentView("library")}
+        userEmail={user.email}
+        userDisplayName={displayName}
+        onLogout={handleLogout}
+      />
+
+      {/* 2. Main Workspace */}
+      <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
+        {/* Top Header Bar */}
+        <header className="h-14 shrink-0 border-b border-stone-200/80 dark:border-stone-800/80 bg-[#FAF8F5]/85 dark:bg-[#0C0A09]/85 backdrop-blur-md px-4 flex items-center justify-between z-20">
+          <div className="flex items-center gap-3 min-w-0">
+            {isSidebarCollapsed && (
+              <button
+                type="button"
+                onClick={() => setIsSidebarCollapsed(false)}
+                className="p-1.5 rounded-lg text-stone-500 hover:text-stone-900 dark:hover:text-stone-100 hover:bg-stone-200/60 dark:hover:bg-stone-800 transition-colors"
+                title="Expand Sidebar"
+              >
+                <Menu className="h-4 w-4" />
+              </button>
+            )}
+
+            <div className="flex items-center gap-2 truncate">
+              {currentView === "chat" ? (
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-amber-600 dark:text-amber-500 shrink-0" />
+                  <span className="text-xs sm:text-sm font-semibold truncate text-stone-900 dark:text-stone-100">
+                    {activeThreadId ? "AI Document Chat" : "New Chat Session"}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentView("chat")}
+                    className="p-1 rounded-md text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition-colors mr-1"
+                    title="Return to Chat"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </button>
+                  <span className="text-xs sm:text-sm font-semibold text-stone-900 dark:text-stone-100">
+                    Knowledge Base & Documents
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <ThemeToggle />
-            <div className="h-4 w-px bg-stone-200 dark:bg-stone-800 hidden sm:block" />
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full border border-stone-300/80 dark:border-stone-800 bg-white/70 dark:bg-stone-900/70 text-xs">
-              <div className="h-5 w-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px] font-bold">
-                {displayName.charAt(0).toUpperCase()}
-              </div>
-              <span className="font-medium text-stone-700 dark:text-stone-300 truncate max-w-[150px]">
-                {user.email}
-              </span>
+          {/* Right Header Controls */}
+          <div className="flex items-center gap-2.5">
+            {/* View Switcher Pills */}
+            <div className="flex items-center p-0.5 rounded-lg border border-stone-200 dark:border-stone-800 bg-stone-100 dark:bg-stone-900 text-xs font-medium">
+              <button
+                type="button"
+                onClick={() => setCurrentView("chat")}
+                className={`px-3 py-1 rounded-md transition-all ${
+                  currentView === "chat"
+                    ? "bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 shadow-2xs font-semibold"
+                    : "text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
+                }`}
+              >
+                AI Chat
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentView("library")}
+                className={`px-3 py-1 rounded-md transition-all ${
+                  currentView === "library"
+                    ? "bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 shadow-2xs font-semibold"
+                    : "text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
+                }`}
+              >
+                Library
+              </button>
             </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleLogout}
-              className="gap-1.5 text-xs text-rose-600 dark:text-rose-400 hover:border-rose-300 dark:hover:border-rose-900"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              Sign Out
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Workspace Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Editorial Greeting Header */}
-        <div className="rounded-2xl border border-stone-300/80 dark:border-stone-800 bg-white dark:bg-[#141210] p-6 sm:p-8 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-1.5 text-xs font-mono font-medium text-amber-700 dark:text-amber-400">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Workspace Active</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
-              Welcome back, {displayName}.
-            </h1>
-            <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 leading-relaxed">
-              Your documents are organized in private collections with instant citation synthesis.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
-            <Button
-              size="sm"
-              onClick={() =>
-                toast.info("Document upload pipeline is active. Drag and drop any PDF/DOCX below.")
-              }
-            >
-              <Upload className="h-3.5 w-3.5 mr-1" /> Quick Upload
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                toast.info("Collections manager available in the upcoming collections release.")
-              }
-            >
-              <FolderOpen className="h-3.5 w-3.5 mr-1" /> New Collection
-            </Button>
-          </div>
-        </div>
-
-        {/* Quick Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-5 rounded-2xl border border-stone-300/80 dark:border-stone-800 bg-white dark:bg-[#141210] shadow-xs flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wider font-mono">
-                Active Collections
-              </p>
-              <p className="text-2xl font-bold text-stone-900 dark:text-stone-100 mt-1 font-mono">
-                0
-              </p>
-            </div>
-            <div className="h-10 w-10 rounded-xl bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 flex items-center justify-center">
-              <FolderOpen className="h-5 w-5" />
-            </div>
-          </div>
-
-          <div className="p-5 rounded-2xl border border-stone-300/80 dark:border-stone-800 bg-white dark:bg-[#141210] shadow-xs flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wider font-mono">
-                Indexed Documents
-              </p>
-              <p className="text-2xl font-bold text-stone-900 dark:text-stone-100 mt-1 font-mono">
-                0
-              </p>
-            </div>
-            <div className="h-10 w-10 rounded-xl bg-amber-100/70 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center">
-              <FileText className="h-5 w-5" />
-            </div>
-          </div>
-
-          <div className="p-5 rounded-2xl border border-stone-300/80 dark:border-stone-800 bg-white dark:bg-[#141210] shadow-xs flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wider font-mono">
-                Verified Queries
-              </p>
-              <p className="text-2xl font-bold text-stone-900 dark:text-stone-100 mt-1 font-mono">
-                0
-              </p>
-            </div>
-            <div className="h-10 w-10 rounded-xl bg-emerald-100/70 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
-              <MessageSquare className="h-5 w-5" />
-            </div>
-          </div>
-        </div>
-
-        {/* Content Layout: Documents Area & Profile */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Activity Area (2 cols) */}
-          <div className="lg:col-span-2 rounded-2xl border border-stone-300/80 dark:border-stone-800 bg-white dark:bg-[#141210] p-6 sm:p-10 shadow-xs flex flex-col justify-center items-center text-center">
-            <div className="h-14 w-14 rounded-2xl bg-stone-100 dark:bg-stone-800/80 text-stone-600 dark:text-stone-400 flex items-center justify-center mb-4 border border-stone-200 dark:border-stone-700">
-              <Upload className="h-7 w-7" />
-            </div>
-            <h3 className="text-base font-bold text-stone-900 dark:text-stone-100">
-              No documents indexed in this workspace
-            </h3>
-            <p className="text-xs sm:text-sm text-stone-500 dark:text-stone-400 max-w-sm mt-1.5 leading-relaxed">
-              Drag and drop your PDF agreements, technical research, or quarterly filings to begin
-              deterministic chunk indexing and citation-backed synthesis.
-            </p>
-            <div className="flex flex-wrap gap-2.5 justify-center mt-6">
+            {currentView === "library" && (
               <Button
                 size="sm"
-                onClick={() =>
-                  toast.info("Document upload pipeline is ready for collections integration.")
-                }
+                onClick={() => setIsUploadModalOpen(true)}
+                className="gap-1.5 text-xs shadow-xs hidden sm:flex"
               >
-                <Upload className="h-3.5 w-3.5 mr-1" /> Upload PDF Document
+                <UploadCloud className="h-3.5 w-3.5" />
+                <span>Upload</span>
               </Button>
-            </div>
-          </div>
-
-          {/* Account Profile Card (1 col) */}
-          <div className="rounded-2xl border border-stone-300/80 dark:border-stone-800 bg-white dark:bg-[#141210] p-6 shadow-xs flex flex-col justify-between">
-            {showChangePassword ? (
-              <ChangePasswordForm
-                onSuccess={() => setShowChangePassword(false)}
-                onCancel={() => setShowChangePassword(false)}
-              />
-            ) : (
-              <div>
-                <div className="flex items-center gap-3 pb-4 border-b border-stone-200 dark:border-stone-800">
-                  <div className="h-9 w-9 rounded-xl bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-stone-200 flex items-center justify-center font-bold">
-                    <UserIcon className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-bold text-stone-900 dark:text-stone-100">
-                      Account Profile
-                    </h2>
-                    <p className="text-[11px] text-stone-500 dark:text-stone-400">
-                      Identity & access credentials
-                    </p>
-                  </div>
-                </div>
-
-                <dl className="mt-4 space-y-2.5 text-xs">
-                  <div className="flex justify-between py-1.5 border-b border-stone-100 dark:border-stone-800/60">
-                    <dt className="text-stone-500 dark:text-stone-400">Name</dt>
-                    <dd className="font-semibold text-stone-900 dark:text-stone-100">{fullName}</dd>
-                  </div>
-                  <div className="flex justify-between py-1.5 border-b border-stone-100 dark:border-stone-800/60">
-                    <dt className="text-stone-500 dark:text-stone-400">Email</dt>
-                    <dd className="font-mono text-stone-900 dark:text-stone-100 truncate max-w-[170px]">
-                      {user.email}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between py-1.5 border-b border-stone-100 dark:border-stone-800/60">
-                    <dt className="text-stone-500 dark:text-stone-400">Role</dt>
-                    <dd className="capitalize font-mono font-semibold text-amber-700 dark:text-amber-400">
-                      {user.role}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between py-1.5">
-                    <dt className="text-stone-500 dark:text-stone-400">Account Status</dt>
-                    <dd className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
-                      <ShieldCheck className="h-3.5 w-3.5" /> Verified
-                    </dd>
-                  </div>
-                </dl>
-
-                <div className="mt-6 pt-4 border-t border-stone-200 dark:border-stone-800">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-2 text-xs"
-                    onClick={() => setShowChangePassword(true)}
-                  >
-                    <KeyRound className="h-3.5 w-3.5" />
-                    Change Password
-                  </Button>
-                </div>
-              </div>
             )}
           </div>
-        </div>
-      </main>
+        </header>
+
+        {/* Dynamic Body Content */}
+        {currentView === "chat" ? (
+          /* Main ChatGPT Style Canvas */
+          <ChatView
+            activeThreadId={activeThreadId}
+            onSelectThread={setActiveThreadId}
+            activeCollectionId={activeCollectionId}
+            activeCollectionName={activeCollectionName}
+            userInitial={userInitial}
+          />
+        ) : (
+          /* Knowledge Library View (Collections & Documents) */
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 max-w-7xl w-full mx-auto">
+            {/* Library Welcome Banner */}
+            <div className="rounded-2xl border border-stone-300/80 dark:border-stone-800 bg-white dark:bg-[#141210] p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-1.5 max-w-2xl">
+                <div className="inline-flex items-center gap-1.5 text-xs font-mono font-medium text-amber-700 dark:text-amber-400">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Knowledge Base Ingestion</span>
+                </div>
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
+                  Document Knowledge Bases
+                </h1>
+                <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 leading-relaxed">
+                  Manage collections, upload new documentation, and monitor Docling layout-aware parsing and pgvector indexing.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="gap-1.5 shadow-xs text-xs"
+                >
+                  <FolderPlus className="h-4 w-4" />
+                  <span>New Collection</span>
+                </Button>
+
+                <Button
+                  size="sm"
+                  onClick={() => setIsUploadModalOpen(true)}
+                  className="gap-1.5 shadow-xs text-xs"
+                >
+                  <UploadCloud className="h-4 w-4" />
+                  <span>Upload Document</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Stat Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 rounded-2xl border border-stone-300/80 dark:border-stone-800 bg-white dark:bg-[#141210] shadow-xs flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wider font-mono">
+                    Collections
+                  </p>
+                  <p className="text-2xl font-bold text-stone-900 dark:text-stone-100 mt-1 font-mono">
+                    {collectionsCount}
+                  </p>
+                </div>
+                <div className="h-9 w-9 rounded-xl bg-amber-100/70 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center">
+                  <FolderOpen className="h-4 w-4" />
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl border border-stone-300/80 dark:border-stone-800 bg-white dark:bg-[#141210] shadow-xs flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wider font-mono">
+                    Indexed Documents
+                  </p>
+                  <p className="text-2xl font-bold text-stone-900 dark:text-stone-100 mt-1 font-mono">
+                    {totalDocuments}
+                  </p>
+                </div>
+                <div className="h-9 w-9 rounded-xl bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 flex items-center justify-center">
+                  <FileText className="h-4 w-4" />
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl border border-stone-300/80 dark:border-stone-800 bg-white dark:bg-[#141210] shadow-xs flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wider font-mono">
+                    Conversations
+                  </p>
+                  <p className="text-2xl font-bold text-stone-900 dark:text-stone-100 mt-1 font-mono">
+                    {totalThreads}
+                  </p>
+                </div>
+                <div className="h-9 w-9 rounded-xl bg-emerald-100/70 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
+                  <MessageSquare className="h-4 w-4" />
+                </div>
+              </div>
+            </div>
+
+            {/* Collections Section */}
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-stone-900 dark:text-stone-100 tracking-tight">
+                    Collections
+                  </h2>
+                  <p className="text-xs text-stone-500 dark:text-stone-400">
+                    Grouped knowledge bases for isolated document retrieval.
+                  </p>
+                </div>
+                {activeCollectionId && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setActiveCollectionId(undefined)}
+                    className="text-xs text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
+                  >
+                    Clear Filter
+                  </Button>
+                )}
+              </div>
+
+              <CollectionsList
+                onSelectCollection={(col: Collection) => {
+                  setActiveCollectionId(col.id);
+                  toast.info(`Filtered to "${col.name}"`);
+                }}
+              />
+            </section>
+
+            {/* Documents Section */}
+            <section className="space-y-4 pt-4 border-t border-stone-200/80 dark:border-stone-800/80">
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-stone-900 dark:text-stone-100 tracking-tight">
+                  Indexed Documents
+                </h2>
+                <p className="text-xs text-stone-500 dark:text-stone-400">
+                  Search through all ingested documents, inspect parsed tables, or trigger on-demand executive summaries.
+                </p>
+              </div>
+
+              <DocumentList
+                initialCollectionId={activeCollectionId}
+                onOpenUpload={() => setIsUploadModalOpen(true)}
+              />
+            </section>
+
+            {/* Account Profile Card */}
+            <section className="pt-4 border-t border-stone-200 dark:border-stone-800">
+              <div className="max-w-md rounded-2xl border border-stone-300/80 dark:border-stone-800 bg-white dark:bg-[#141210] p-5 shadow-xs space-y-4">
+                {showChangePassword ? (
+                  <ChangePasswordForm
+                    onSuccess={() => setShowChangePassword(false)}
+                    onCancel={() => setShowChangePassword(false)}
+                  />
+                ) : (
+                  <div>
+                    <div className="flex items-center gap-3 pb-3 border-b border-stone-200 dark:border-stone-800">
+                      <div className="h-8 w-8 rounded-xl bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-stone-200 flex items-center justify-center font-bold">
+                        <UserIcon className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs sm:text-sm font-bold text-stone-900 dark:text-stone-100">
+                          Account Profile
+                        </h3>
+                        <p className="text-[10px] text-stone-500 dark:text-stone-400">
+                          Identity & credentials
+                        </p>
+                      </div>
+                    </div>
+
+                    <dl className="mt-3 space-y-2 text-xs">
+                      <div className="flex justify-between py-1 border-b border-stone-100 dark:border-stone-800/60">
+                        <dt className="text-stone-500">Email</dt>
+                        <dd className="font-mono text-stone-900 dark:text-stone-100 truncate max-w-[170px]">
+                          {user.email}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-stone-100 dark:border-stone-800/60">
+                        <dt className="text-stone-500">Role</dt>
+                        <dd className="capitalize font-mono font-semibold text-amber-700 dark:text-amber-400">
+                          {user.role}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <dt className="text-stone-500">Status</dt>
+                        <dd className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
+                          <ShieldCheck className="h-3.5 w-3.5" /> Verified
+                        </dd>
+                      </div>
+                    </dl>
+
+                    <div className="mt-4 pt-3 border-t border-stone-200 dark:border-stone-800">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full gap-2 text-xs"
+                        onClick={() => setShowChangePassword(true)}
+                      >
+                        <KeyRound className="h-3.5 w-3.5" />
+                        Change Password
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
+        )}
+      </div>
+
+      {/* Global Modals */}
+      <CreateCollectionModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      />
+
+      <DocumentUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        defaultCollectionId={activeCollectionId}
+      />
     </div>
   );
 }
