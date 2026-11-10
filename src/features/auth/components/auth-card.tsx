@@ -1,7 +1,8 @@
 import React from "react";
 import Link from "next/link";
-import { Sparkles, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 interface AuthCardProps {
   title: string;
@@ -20,45 +21,48 @@ export function AuthCard({
 }: AuthCardProps) {
   return (
     <div className="w-full max-w-md mx-auto">
-      {/* Brand Header */}
-      <div className="flex flex-col items-center text-center mb-6">
+      {/* Top Bar with Theme Toggle */}
+      <div className="flex items-center justify-between mb-8">
         <Link
           href="/"
-          className="group inline-flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 mb-4 transition-transform hover:scale-105"
+          className="group inline-flex items-center gap-2.5 px-3 py-1 rounded-full border border-stone-300/80 dark:border-stone-800 bg-white/80 dark:bg-stone-900/80 shadow-2xs backdrop-blur-xs transition-transform hover:scale-105"
         >
-          <div className="h-6 w-6 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-sm shadow-indigo-600/30">
-            <FileText className="h-3.5 w-3.5" />
+          <div className="h-5 w-5 rounded-lg bg-stone-900 dark:bg-stone-100 flex items-center justify-center text-stone-100 dark:text-stone-900 shadow-2xs">
+            <FileText className="h-3 w-3" />
           </div>
-          <span className="text-xs font-semibold tracking-wide text-indigo-950 dark:text-indigo-200 flex items-center gap-1">
-            DocIntel AI <Sparkles className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+          <span className="text-xs font-semibold tracking-tight text-stone-900 dark:text-stone-100 flex items-center gap-1">
+            DocIntel <span className="text-amber-600 dark:text-amber-400">AI</span>
           </span>
         </Link>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-          {title}
-        </h1>
-        {subtitle && (
-          <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400 max-w-xs">
-            {subtitle}
-          </p>
-        )}
+        <ThemeToggle />
       </div>
 
       {/* Main Card */}
       <div
         className={cn(
-          "rounded-2xl border border-slate-200/90 dark:border-slate-800/90 bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl p-6 sm:p-8 shadow-xl shadow-slate-900/5 dark:shadow-black/40 transition-all",
+          "rounded-2xl border border-stone-300/80 dark:border-stone-800 bg-white/95 dark:bg-[#141210]/95 backdrop-blur-xl p-6 sm:p-8 shadow-xl shadow-stone-900/5 dark:shadow-black/60 transition-all",
           className
         )}
       >
-        {children}
-      </div>
-
-      {/* Footer */}
-      {footer && (
-        <div className="mt-6 text-center text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-          {footer}
+        <div className="text-left mb-6 space-y-1">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
+            {title}
+          </h1>
+          {subtitle && (
+            <p className="text-xs sm:text-sm text-stone-600 dark:text-stone-400 leading-relaxed">
+              {subtitle}
+            </p>
+          )}
         </div>
-      )}
+
+        <div>{children}</div>
+
+        {footer && (
+          <div className="mt-6 pt-5 border-t border-stone-200 dark:border-stone-800/80 text-center text-xs text-stone-600 dark:text-stone-400">
+            {footer}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

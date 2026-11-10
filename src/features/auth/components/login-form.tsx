@@ -82,7 +82,7 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
           Don&apos;t have an account?{" "}
           <Link
             href="/register"
-            className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 hover:underline inline-flex items-center gap-1"
+            className="font-medium text-amber-700 hover:text-amber-600 dark:text-amber-400 hover:underline inline-flex items-center gap-1"
           >
             Create an account <ArrowRight className="h-3 w-3" />
           </Link>
@@ -133,10 +133,10 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
         </div>
 
         <div className="flex items-center justify-between text-xs sm:text-sm pt-1">
-          <label className="flex items-center gap-2 cursor-pointer select-none text-slate-600 dark:text-slate-400">
+          <label className="flex items-center gap-2 cursor-pointer select-none text-stone-600 dark:text-stone-400">
             <input
               type="checkbox"
-              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              className="h-4 w-4 rounded border-stone-300 dark:border-stone-700 text-stone-900 focus:ring-amber-500 cursor-pointer"
               {...register("rememberMe")}
             />
             <span>Remember me</span>
@@ -144,7 +144,7 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
 
           <Link
             href="/forgot-password"
-            className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 hover:underline"
+            className="font-medium text-amber-700 hover:text-amber-600 dark:text-amber-400 hover:underline"
           >
             Forgot password?
           </Link>

@@ -70,7 +70,7 @@ export function RegisterForm() {
           Already have an account?{" "}
           <Link
             href="/login"
-            className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 hover:underline inline-flex items-center gap-1"
+            className="font-medium text-amber-700 hover:text-amber-600 dark:text-amber-400 hover:underline inline-flex items-center gap-1"
           >
             <ArrowLeft className="h-3 w-3" /> Back to sign in
           </Link>

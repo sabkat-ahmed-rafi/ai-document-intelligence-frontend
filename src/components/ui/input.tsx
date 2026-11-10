@@ -33,14 +33,14 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300"
+            className="block text-xs font-medium tracking-wide text-stone-700 dark:text-stone-300"
           >
             {label}
           </label>
         )}
         <div className="relative flex items-center">
           {leftIcon && (
-            <div className="pointer-events-none absolute left-3 flex items-center text-slate-400">
+            <div className="pointer-events-none absolute left-3.5 z-10 flex items-center justify-center text-stone-500 dark:text-stone-400">
               {leftIcon}
             </div>
           )}
@@ -50,27 +50,30 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             type={type}
             disabled={disabled}
             className={cn(
-              "flex h-10 w-full rounded-lg border bg-white dark:bg-slate-900/60 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-offset-1 transition-all",
-              leftIcon ? "pl-10" : undefined,
-              rightIcon ? "pr-10" : undefined,
-              error
-                ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20"
-                : "border-slate-300 dark:border-slate-700/80 focus:border-indigo-500 focus:ring-indigo-500/20",
-              disabled && "cursor-not-allowed opacity-50 bg-slate-50 dark:bg-slate-800",
+              "flex h-10 w-full rounded-xl border bg-white/90 dark:bg-stone-900/90 px-3.5 py-2 text-sm text-stone-900 dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 transition-all duration-150 ease-out shadow-2xs backdrop-blur-xs",
+              "border-stone-300 dark:border-stone-800",
+              "focus-visible:outline-none focus-visible:border-stone-600 dark:focus-visible:border-stone-400 focus-visible:ring-3 focus-visible:ring-stone-400/15 dark:focus-visible:ring-stone-500/15",
+              "disabled:cursor-not-allowed disabled:opacity-50",
+              Boolean(leftIcon) && "pl-10",
+              Boolean(rightIcon) && "pr-10",
+              error &&
+                "border-rose-500 text-rose-900 dark:text-rose-200 focus-visible:border-rose-500 focus-visible:ring-rose-500/20",
               className
             )}
             {...props}
           />
           {rightIcon && (
-            <div className="absolute right-3 flex items-center">
+            <div className="absolute right-3.5 z-10 flex items-center justify-center text-stone-500 dark:text-stone-400">
               {rightIcon}
             </div>
           )}
         </div>
         {error ? (
-          <p className="text-xs text-rose-500 font-medium">{error}</p>
+          <p className="text-xs text-rose-600 dark:text-rose-400 font-medium animate-in fade-in-50 duration-150">
+            {error}
+          </p>
         ) : helperText ? (
-          <p className="text-xs text-slate-500">{helperText}</p>
+          <p className="text-xs text-stone-500 dark:text-stone-400">{helperText}</p>
         ) : null}
       </div>
     );
