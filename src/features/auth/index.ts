@@ -14,3 +14,4 @@ export * from "./components/register-view";
 export * from "./components/forgot-password-form";
 export * from "./components/forgot-password-view";
 export * from "./components/change-password-form";
+export * from "./components/account-settings-modal";

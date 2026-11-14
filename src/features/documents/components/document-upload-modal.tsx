@@ -1,23 +1,13 @@
 "use client";
 
 import React, { useState, useRef, DragEvent, ChangeEvent } from "react";
-import {
-  UploadCloud,
-  X,
-  FileText,
-  File,
-  Image as ImageIcon,
-  Folder,
-  Plus,
-  Loader2,
-  CheckCircle2,
-} from "lucide-react";
+import { UploadCloud, X, Folder, Plus, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useUploadDocumentsMutation } from "../api/documents-api";
 import { useListCollectionsQuery } from "@/features/collections/api/collections-api";
-import { formatBytes, getFileCategory } from "../utils/file-helpers";
+import { UploadFileDropzone } from "./upload/upload-file-dropzone";
+import { UploadStagedFiles } from "./upload/upload-staged-files";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 interface DocumentUploadModalProps {
   isOpen: boolean;
@@ -65,21 +55,19 @@ export function DocumentUploadModal({
     setIsDragging(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const droppedFiles = Array.from(e.dataTransfer.files);
-      addFiles(droppedFiles);
+      addFiles(Array.from(e.dataTransfer.files));
     }
   };
 
   const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const selectedFiles = Array.from(e.target.files);
-      addFiles(selectedFiles);
+      addFiles(Array.from(e.target.files));
     }
   };
 
   const addFiles = (newFiles: File[]) => {
     const validFiles: File[] = [];
-    const maxSizeBytes = 50 * 1024 * 1024; // 50MB limit from backend specification
+    const maxSizeBytes = 50 * 1024 * 1024; // 50MB limit
 
     for (const file of newFiles) {
       if (file.size > maxSizeBytes) {
@@ -104,7 +92,6 @@ export function DocumentUploadModal({
 
     const formData = new FormData();
 
-    // Backend accepts files: list[UploadFile] or file: UploadFile fallback
     if (files.length === 1) {
       formData.append("file", files[0]);
       formData.append("files", files[0]);
@@ -142,7 +129,7 @@ export function DocumentUploadModal({
         );
       }
 
-      // Reset and close
+      // Reset & Close
       setFiles([]);
       setCustomTitle("");
       setNewCollectionName("");
@@ -151,20 +138,6 @@ export function DocumentUploadModal({
     } catch (err: unknown) {
       const errorObj = err as { data?: { message?: string } };
       toast.error(errorObj?.data?.message || "Failed to upload document. Please try again.");
-    }
-  };
-
-  const getFileIcon = (file: File) => {
-    const category = getFileCategory(file.type, file.name);
-    switch (category) {
-      case "pdf":
-        return <FileText className="h-5 w-5 text-rose-500" />;
-      case "word":
-        return <FileText className="h-5 w-5 text-blue-500" />;
-      case "image":
-        return <ImageIcon className="h-5 w-5 text-emerald-500" />;
-      default:
-        return <File className="h-5 w-5 text-amber-500" />;
     }
   };
 
@@ -201,7 +174,7 @@ export function DocumentUploadModal({
 
         {/* Scrollable Body */}
         <div className="space-y-5 overflow-y-auto pr-1 flex-1">
-          {/* Collection Assignment */}
+          {/* Target Collection Selection */}
           <div className="space-y-2">
             <label className="block text-xs font-semibold text-stone-700 dark:text-stone-300 font-mono uppercase tracking-wider">
               Target Collection
@@ -277,84 +250,21 @@ export function DocumentUploadModal({
             </div>
           )}
 
-          {/* Drag & Drop Zone */}
-          <div
+          {/* Drag & Drop Area */}
+          <UploadFileDropzone
+            isDragging={isDragging}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className={cn(
-              "group relative flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed transition-all duration-150 cursor-pointer text-center",
-              isDragging
-                ? "border-amber-500 bg-amber-50/50 dark:bg-amber-950/20 scale-[0.99]"
-                : "border-stone-300 dark:border-stone-800 bg-white/70 dark:bg-stone-900/40 hover:border-amber-400 dark:hover:border-stone-700 hover:bg-white dark:hover:bg-stone-900/70"
-            )}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".pdf,.docx,.doc,.txt,.md,.png,.jpg,.jpeg,.webp,.tiff,.bmp"
-              onChange={handleFileInputChange}
-              className="hidden"
-            />
-            <div className="h-12 w-12 rounded-2xl bg-amber-100/70 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform duration-150">
-              <UploadCloud className="h-6 w-6" />
-            </div>
-            <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">
-              Drag & drop files here, or <span className="text-amber-600 dark:text-amber-500 underline underline-offset-2">browse</span>
-            </p>
-            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
-              Supports PDF, DOCX, TXT, MD, Images (up to 50MB per file)
-            </p>
-          </div>
+            fileInputRef={fileInputRef}
+            onFileInputChange={handleFileInputChange}
+          />
 
-          {/* Staged Files List */}
-          {files.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs font-mono font-medium text-stone-500 dark:text-stone-400">
-                <span>Selected Files ({files.length})</span>
-                <span>
-                  Total: {formatBytes(files.reduce((acc, f) => acc + f.size, 0))}
-                </span>
-              </div>
-              <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                {files.map((file, idx) => (
-                  <div
-                    key={`${file.name}-${idx}`}
-                    className="flex items-center justify-between p-2.5 rounded-xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900/80 text-xs"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                      {getFileIcon(file)}
-                      <div className="min-w-0">
-                        <p className="font-medium text-stone-900 dark:text-stone-100 truncate">
-                          {file.name}
-                        </p>
-                        <p className="text-[10px] font-mono text-stone-500 dark:text-stone-400">
-                          {formatBytes(file.size)}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeFile(idx);
-                      }}
-                      disabled={isLoading}
-                      className="p-1 rounded-md text-stone-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
-                      title="Remove file"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Staged File List */}
+          <UploadStagedFiles files={files} onRemoveFile={removeFile} isLoading={isLoading} />
         </div>
 
-        {/* Footer Actions */}
+        {/* Footer */}
         <div className="flex items-center justify-between pt-4 border-t border-stone-200/80 dark:border-stone-800/80">
           <div className="flex items-center gap-1.5 text-[11px] text-stone-500 dark:text-stone-400 font-mono">
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
@@ -387,9 +297,7 @@ export function DocumentUploadModal({
               ) : (
                 <>
                   <UploadCloud className="h-3.5 w-3.5" />
-                  <span>
-                    Upload {files.length > 0 ? `(${files.length})` : ""}
-                  </span>
+                  <span>Upload {files.length > 0 ? `(${files.length})` : ""}</span>
                 </>
               )}
             </Button>

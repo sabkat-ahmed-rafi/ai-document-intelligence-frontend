@@ -81,7 +81,7 @@ export function DocumentList({ initialCollectionId, onOpenUpload }: DocumentList
       const summaryText =
         typeof doc.doc_metadata?.summary === "string"
           ? doc.doc_metadata.summary
-          : (doc.doc_metadata?.summary as any)?.executive_summary;
+          : (doc.doc_metadata?.summary as { executive_summary?: string } | undefined)?.executive_summary;
 
       return (
         doc.title?.toLowerCase().includes(q) ||
