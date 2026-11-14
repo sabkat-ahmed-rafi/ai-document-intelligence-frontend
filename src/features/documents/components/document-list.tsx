@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   FileText,
   Search,
@@ -9,11 +9,14 @@ import {
   Image as ImageIcon,
   Folder,
   Filter,
+  AlertCircle,
+  RotateCw,
 } from "lucide-react";
+import { toast } from "sonner";
 import { DocumentStatusBadge } from "./document-status-badge";
 import { DocumentUploadModal } from "./document-upload-modal";
 import { DocumentDetailModal } from "./document-detail-modal";
-import { useListDocumentsQuery } from "../api/documents-api";
+import { useListDocumentsQuery, useProcessDocumentMutation } from "../api/documents-api";
 import { useListCollectionsQuery } from "@/features/collections/api/collections-api";
 import { formatBytes, getFileCategory } from "../utils/file-helpers";
 import { Button } from "@/components/ui/button";
@@ -30,6 +33,7 @@ export function DocumentList({ initialCollectionId, onOpenUpload }: DocumentList
   );
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [retryingDocId, setRetryingDocId] = useState<string | null>(null);
 
   // Collections list for filtering
   const { data: collectionsRes } = useListCollectionsQuery();
@@ -38,32 +42,53 @@ export function DocumentList({ initialCollectionId, onOpenUpload }: DocumentList
     [collectionsRes?.data?.collections]
   );
 
-  // Query documents with auto-polling if any document is processing
+  // Query documents without unconditional polling
   const {
     data: documentsRes,
     isLoading,
+    refetch,
   } = useListDocumentsQuery(
-    selectedCollectionId ? { collection_id: selectedCollectionId } : undefined,
-    {
-      pollingInterval: 3500, // Poll every 3.5s to keep status in sync when documents are processing
-    }
+    selectedCollectionId ? { collection_id: selectedCollectionId } : undefined
   );
+
+  const [processDocument] = useProcessDocumentMutation();
 
   const rawDocuments = useMemo(
     () => documentsRes?.data?.documents ?? [],
     [documentsRes?.data?.documents]
   );
 
+  // Auto-poll ONLY if there is at least one active document (pending or processing)
+  const hasActiveProcessing = useMemo(() => {
+    return rawDocuments.some((doc) => doc.status === "pending" || doc.status === "processing");
+  }, [rawDocuments]);
+
+  useEffect(() => {
+    if (!hasActiveProcessing) return;
+
+    const intervalId = setInterval(() => {
+      refetch();
+    }, 3500);
+
+    return () => clearInterval(intervalId);
+  }, [hasActiveProcessing, refetch]);
+
   // Client-side search filtering
   const filteredDocuments = useMemo(() => {
     if (!searchQuery.trim()) return rawDocuments;
     const q = searchQuery.toLowerCase().trim();
-    return rawDocuments.filter(
-      (doc) =>
+    return rawDocuments.filter((doc) => {
+      const summaryText =
+        typeof doc.doc_metadata?.summary === "string"
+          ? doc.doc_metadata.summary
+          : (doc.doc_metadata?.summary as any)?.executive_summary;
+
+      return (
         doc.title?.toLowerCase().includes(q) ||
         doc.original_filename?.toLowerCase().includes(q) ||
-        doc.doc_metadata?.summary?.toLowerCase().includes(q)
-    );
+        summaryText?.toLowerCase().includes(q)
+      );
+    });
   }, [rawDocuments, searchQuery]);
 
   const getFileIcon = (mimeType?: string, filename?: string) => {
@@ -91,6 +116,20 @@ export function DocumentList({ initialCollectionId, onOpenUpload }: DocumentList
       onOpenUpload();
     } else {
       setIsUploadOpen(true);
+    }
+  };
+
+  const handleRetryProcessing = async (e: React.MouseEvent, docId: string) => {
+    e.stopPropagation();
+    setRetryingDocId(docId);
+    try {
+      await processDocument({ documentId: docId }).unwrap();
+      toast.success("Document re-queued for AI processing");
+      refetch();
+    } catch {
+      toast.error("Failed to re-trigger processing");
+    } finally {
+      setRetryingDocId(null);
     }
   };
 
@@ -192,6 +231,7 @@ export function DocumentList({ initialCollectionId, onOpenUpload }: DocumentList
             const collectionName = doc.collection_id
               ? collectionMap.get(doc.collection_id)
               : null;
+            const isRetrying = retryingDocId === doc.id;
 
             return (
               <div
@@ -211,7 +251,7 @@ export function DocumentList({ initialCollectionId, onOpenUpload }: DocumentList
                     />
                   </div>
 
-                  {/* Title & Collection */}
+                  {/* Title & Filename */}
                   <div className="mt-3 space-y-1">
                     <h3 className="text-xs sm:text-sm font-bold text-stone-900 dark:text-stone-100 truncate group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">
                       {doc.title || doc.original_filename}
@@ -220,6 +260,30 @@ export function DocumentList({ initialCollectionId, onOpenUpload }: DocumentList
                       {doc.original_filename}
                     </p>
                   </div>
+
+                  {/* If Failed: Clear, user-friendly error callout & retry button */}
+                  {doc.status === "failed" && (
+                    <div className="mt-3 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-900/50 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1 text-[10px] font-mono font-semibold uppercase text-rose-600 dark:text-rose-400">
+                          <AlertCircle className="h-3 w-3 shrink-0" />
+                          <span>Processing Issue</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => handleRetryProcessing(e, doc.id)}
+                          disabled={isRetrying}
+                          className="flex items-center gap-1 text-[10px] font-semibold text-rose-700 dark:text-rose-300 hover:underline cursor-pointer"
+                        >
+                          <RotateCw className={`h-2.5 w-2.5 ${isRetrying ? "animate-spin" : ""}`} />
+                          <span>Retry</span>
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-rose-700 dark:text-rose-300/90 line-clamp-2 leading-tight">
+                        {doc.error_message || "Ingestion pipeline was interrupted."}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Bottom Metadata: Size, Pages/Chunks, Collection Pill */}

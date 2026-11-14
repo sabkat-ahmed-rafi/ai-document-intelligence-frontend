@@ -39,7 +39,8 @@ All unauthenticated requests triggering `HTTP 401` are intercepted in `src/store
 ### Ingestion Flow:
 1. **Client Upload**: Client submits `multipart/form-data` with `files: File[]`, `file: File`, and optional `collection_id` or `collection_name`.
 2. **Server Response (HTTP 202 Accepted)**: Server persists file metadata in PostgreSQL with `status: "pending"`, uploads raw file to Supabase Storage, enqueues background parsing task via Celery, and returns `DocumentBatchUploadResponse`.
-3. **Frontend Polling & Status Transition**: The frontend queries `GET /documents` every 3.5s while any document is in `"pending"` or `"processing"`, transitioning to `"completed"` once Docling parsing, semantic chunking, and pgvector embeddings finish.
+3. **Frontend Polling & Status Transition**: The frontend dynamically polls `GET /documents` every 3.5s *only while documents are actively queued or processing* (`status === "pending"` or `"processing"`). As soon as all documents transition into terminal states (`"completed"` or `"failed"`), the polling timer automatically unmounts and halts.
+4. **Error Recovery & Diagnostics**: When a document enters `"failed"` state, the polling immediately stops. The card and inspector render the exact `error_message` returned by the backend worker alongside a one-click "Retry" action calling `POST /documents/{id}/process`.
 
 | Endpoint | Method | Params / Payload | Purpose |
 |---|---|---|---|

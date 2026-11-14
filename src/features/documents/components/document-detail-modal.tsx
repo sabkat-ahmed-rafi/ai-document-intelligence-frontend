@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FileText,
   X,
@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Clock,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { DocumentStatusBadge } from "./document-status-badge";
@@ -36,12 +37,26 @@ interface DocumentDetailModalProps {
 export function DocumentDetailModal({ documentId, onClose }: DocumentDetailModalProps) {
   const [activeTab, setActiveTab] = useState<"summary" | "metadata">("summary");
 
-  // Fetch live document details (polling every 3s to reflect progress if active)
-  const { data: docRes, isLoading: isDocLoading } = useGetDocumentQuery(documentId, {
-    pollingInterval: 3000,
-  });
+  // Fetch live document details
+  const {
+    data: docRes,
+    isLoading: isDocLoading,
+    refetch: refetchDoc,
+  } = useGetDocumentQuery(documentId);
 
   const doc = docRes?.data;
+  const isDocActive = doc?.status === "pending" || doc?.status === "processing";
+
+  // Auto-poll ONLY if document is actively being processed or queued
+  useEffect(() => {
+    if (!isDocActive) return;
+
+    const intervalId = setInterval(() => {
+      refetchDoc();
+    }, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [isDocActive, refetchDoc]);
 
   // Summary query
   const {
@@ -89,11 +104,23 @@ export function DocumentDetailModal({ documentId, onClose }: DocumentDetailModal
 
   if (!doc) return null;
 
-  const summaryData = summaryRes?.data || (doc.doc_metadata?.summary ? {
-    title: doc.title,
-    summary: doc.doc_metadata.summary as string,
-    entities: doc.doc_metadata.entities,
-  } : null);
+  // Normalize summary payload whether it comes from the API endpoint or document metadata
+  const rawSummarySource = (summaryRes?.data?.summary ?? doc.doc_metadata?.summary) as any;
+  const executiveSummaryText: string | null =
+    typeof rawSummarySource === "string"
+      ? rawSummarySource
+      : rawSummarySource?.executive_summary || null;
+
+  const entitiesSource =
+    rawSummarySource?.entities || doc.doc_metadata?.entities || (summaryRes?.data as any)?.entities;
+
+  const summaryData = executiveSummaryText
+    ? {
+        title: doc.title,
+        summary: executiveSummaryText,
+        entities: entitiesSource,
+      }
+    : null;
 
   const formattedDate = new Date(doc.created_at).toLocaleDateString("en-US", {
     month: "short",
@@ -298,11 +325,36 @@ export function DocumentDetailModal({ documentId, onClose }: DocumentDetailModal
                     </Button>
                   </div>
                 )
+              ) : doc.status === "failed" ? (
+                <div className="p-6 rounded-2xl border border-rose-200/80 dark:border-rose-900/50 bg-rose-50/40 dark:bg-rose-950/20 text-center space-y-3">
+                  <div className="h-10 w-10 rounded-xl bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
+                    <AlertCircle className="h-5 w-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-semibold text-rose-900 dark:text-rose-200">
+                      Document Processing Failed
+                    </h4>
+                    <p className="text-xs text-rose-700 dark:text-rose-400 max-w-md mx-auto leading-relaxed font-mono">
+                      {doc.error_message || "The background AI worker encountered an error while parsing the layout or generating embeddings."}
+                    </p>
+                  </div>
+                  <div className="pt-2">
+                    <Button
+                      size="sm"
+                      onClick={handleReprocess}
+                      disabled={isReprocessing}
+                      className="gap-1.5 text-xs bg-rose-600 hover:bg-rose-500 text-white"
+                    >
+                      <RotateCw className={cn("h-3.5 w-3.5", isReprocessing && "animate-spin")} />
+                      <span>Retry Processing</span>
+                    </Button>
+                  </div>
+                </div>
               ) : (
                 <div className="p-6 rounded-xl border border-amber-200/80 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/20 text-center space-y-2">
                   <Clock className="h-6 w-6 text-amber-600 dark:text-amber-400 mx-auto" />
                   <h4 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
-                    Document Is Currently Processing
+                    {doc.status === "pending" ? "Queued in Background" : "Analyzing Layout & Vectors"}
                   </h4>
                   <p className="text-xs text-stone-600 dark:text-stone-400 max-w-sm mx-auto">
                     Layout parsing and vector indexing are running in the background. AI summary and citations will be available as soon as processing completes.
@@ -332,21 +384,36 @@ export function DocumentDetailModal({ documentId, onClose }: DocumentDetailModal
                       "p-2.5 rounded-xl border flex flex-col gap-1",
                       doc.status === "completed"
                         ? "border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/40 dark:bg-emerald-950/20"
+                        : doc.status === "failed"
+                        ? "border-rose-200 dark:border-rose-800/60 bg-rose-50/40 dark:bg-rose-950/20"
                         : doc.status === "processing"
                         ? "border-amber-200 dark:border-amber-800/60 bg-amber-50/40 dark:bg-amber-950/20"
                         : "border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900/30"
                     )}
                   >
-                    <span className="flex items-center gap-1 font-mono text-[10px] text-amber-700 dark:text-amber-400">
+                    <span
+                      className={cn(
+                        "flex items-center gap-1 font-mono text-[10px]",
+                        doc.status === "failed"
+                          ? "text-rose-600 dark:text-rose-400"
+                          : doc.status === "completed"
+                          ? "text-emerald-700 dark:text-emerald-400"
+                          : "text-amber-700 dark:text-amber-400"
+                      )}
+                    >
                       {doc.status === "completed" ? (
                         <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                      ) : doc.status === "failed" ? (
+                        <AlertCircle className="h-3 w-3 text-rose-600" />
                       ) : (
                         <Clock className="h-3 w-3 text-amber-600" />
                       )}{" "}
                       Step 2
                     </span>
                     <span className="font-semibold text-stone-900 dark:text-stone-100">Docling Parser</span>
-                    <span className="text-[10px] text-stone-500 dark:text-stone-400">Layout & Tables</span>
+                    <span className="text-[10px] text-stone-500 dark:text-stone-400">
+                      {doc.status === "failed" ? "Failed" : "Layout & Tables"}
+                    </span>
                   </div>
 
                   <div
